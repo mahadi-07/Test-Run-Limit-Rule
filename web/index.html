@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Limit & Rule Configuration — Simulator</title>
+<style>
+  :root {
+    --bg: #0d1017; --panel: #151a23; --panel2: #1b222e; --panel3: #212a38;
+    --border: #2a3341; --border2: #38445a;
+    --text: #e8edf4; --muted: #8b97a8; --faint: #5d6a7d;
+    --accent: #4f8cff; --accent2: #7aa5ff;
+    --ok: #2ecc71; --bad: #ff5c6c; --warn: #ffb020; --info: #58c5f0;
+    --chip: #232c3a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 10px 40px rgba(0,0,0,.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
+
+  /* ---------- top bar ---------- */
+  header { display: flex; align-items: center; gap: 16px; padding: 0 22px; height: 54px; border-bottom: 1px solid var(--border); background: #10141b; flex: none; }
+  header .logo { display: flex; align-items: baseline; gap: 9px; }
+  header .logo b { font-size: 16px; letter-spacing: .2px; }
+  header .logo span { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .world-summary { display: flex; gap: 14px; color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .world-summary b { color: var(--text); font-weight: 600; }
+
+  /* ---------- layout ---------- */
+  .shell { display: flex; flex: 1; min-height: 0; }
+  nav { width: 196px; border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; flex: none; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 550; font-size: 13.5px; transition: background .12s, color .12s; }
+  .nav-item:hover { background: var(--panel2); color: var(--text); }
+  .nav-item.active { background: rgba(79,140,255,.13); color: var(--accent2); }
+  .nav-item .ico { width: 18px; text-align: center; font-size: 14px; }
+  nav .nav-gap { flex: 1; }
+  nav .nav-foot { color: var(--faint); font-size: 11px; padding: 8px 12px; line-height: 1.7; }
+
+  main { flex: 1; overflow-y: auto; padding: 22px 26px; min-width: 0; }
+  .view { display: none; max-width: 1220px; margin: 0 auto; }
+  .view.active { display: block; }
+  .view-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+  .view-head h1 { font-size: 20px; font-weight: 700; }
+  .view-head .sub { color: var(--muted); font-size: 13px; }
+  .view-head .grow { flex: 1; }
+
+  /* ---------- widgets ---------- */
+  h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 24px 0 10px; font-weight: 700; }
+  h3 { font-size: 14px; font-weight: 650; margin: 14px 0 8px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .grid3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 1080px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  label.f { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  select, input, button { padding: 8px 11px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; outline: none; font-family: inherit; }
+  select:focus, input:focus { border-color: var(--accent); }
+  button { cursor: pointer; font-weight: 600; transition: filter .12s, background .12s; }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.subtle { background: var(--panel3); }
+  button.ghost { background: transparent; border-color: var(--border); }
+  button.small { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+  button.danger { color: var(--bad); border-color: #5b2830; background: transparent; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; }
+  .toolbar select, .toolbar input { width: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 650; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 7px 10px; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #202834; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: var(--panel2); }
+  .mono { font-family: var(--mono); font-size: 12.3px; }
+  .num { font-family: var(--mono); font-size: 12.5px; text-align: right; }
+  .note { color: var(--muted); font-size: 11.8px; }
+  .dim { color: var(--faint); }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+  .pill.ok    { background: rgba(46,204,113,.14); color: var(--ok); }
+  .pill.no    { background: rgba(255,92,108,.14); color: var(--bad); }
+  .pill.off   { background: rgba(255,176,32,.13); color: var(--warn); }
+  .pill.info  { background: rgba(88,197,240,.13); color: var(--info); }
+  .pill.grey  { background: var(--chip); color: var(--muted); }
+  .pill.lvl-SERVICE  { background: rgba(79,140,255,.16); color: var(--accent2); }
+  .pill.lvl-TIER     { background: rgba(160,120,255,.16); color: #b699ff; }
+  .pill.lvl-ACCOUNT  { background: rgba(46,204,160,.14); color: #35d9a4; }
+
+  .switch { position: relative; display: inline-block; width: 38px; height: 20px; vertical-align: middle; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #333e4e; border-radius: 20px; cursor: pointer; transition: .18s; }
+  .slider::before { content: ""; position: absolute; height: 14px; width: 14px; left: 3px; top: 3px; background: #aab6c6; border-radius: 50%; transition: .18s; }
+  .switch input:checked + .slider { background: var(--ok); }
+  .switch input:checked + .slider::before { transform: translateX(18px); background: #fff; }
+  .switch.off-checked input:checked + .slider { background: var(--bad); }
+
+  /* ---------- verdict / trace ---------- */
+  .verdict { border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid; }
+  .verdict.allowed { background: rgba(46,204,113,.07); border-color: rgba(46,204,113,.4); }
+  .verdict.blocked { background: rgba(255,92,108,.07); border-color: rgba(255,92,108,.4); }
+  .verdict .word { font-size: 22px; font-weight: 800; letter-spacing: .4px; }
+  .verdict.allowed .word { color: var(--ok); }
+  .verdict.blocked .word { color: var(--bad); }
+  .verdict .why { margin-top: 5px; font-size: 13.5px; }
+  .verdict .meta { margin-top: 8px; color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+
+  .gate { display: grid; grid-template-columns: 28px 1fr; gap: 13px; position: relative; padding-bottom: 18px; }
+  .gate:last-child { padding-bottom: 2px; }
+  .gate .node { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; border: 2px solid var(--border2); background: var(--panel); color: var(--muted); z-index: 1; }
+  .gate:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--border); }
+  .gate.pass .node { border-color: var(--ok); color: var(--ok); }
+  .gate.fail .node { border-color: var(--bad); color: var(--bad); background: rgba(255,92,108,.12); }
+  .gate.skip .node { border-color: var(--warn); color: var(--warn); }
+  .gate .g-title { font-weight: 700; font-size: 13.5px; }
+  .gate .g-q { color: var(--muted); font-size: 12px; margin: 1px 0 5px; }
+  .gate .g-detail { font-size: 12.8px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; }
+  .gate .tag { font-size: 10px; font-weight: 800; letter-spacing: .07em; padding: 1px 7px; border-radius: 20px; margin-right: 8px; }
+  .gate.pass .tag { background: rgba(46,204,113,.15); color: var(--ok); }
+  .gate.fail .tag { background: rgba(255,92,108,.15); color: var(--bad); }
+  .gate.skip .tag { background: rgba(255,176,32,.15); color: var(--warn); }
+
+  /* ---------- modal ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(5,8,12,.66); backdrop-filter: blur(3px); display: none; align-items: flex-start; justify-content: center; z-index: 50; overflow-y: auto; padding: 6vh 16px 16px; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border2); border-radius: 14px; padding: 22px 24px; width: 560px; max-width: 96vw; box-shadow: var(--shadow); }
+  .modal h2 { margin: 0 0 4px; text-transform: none; letter-spacing: 0; font-size: 17px; color: var(--text); }
+  .modal .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+
+  /* ---------- misc ---------- */
+  .acct-card { background: var(--panel); border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px; margin-bottom: 9px; cursor: pointer; transition: border-color .12s; }
+  .acct-card:hover { border-color: var(--border2); }
+  .acct-card.selected { border-color: var(--accent); background: #17202c; }
+  .acct-card .top { display: flex; align-items: baseline; }
+  .acct-card .id { font-family: var(--mono); font-size: 13.5px; font-weight: 700; }
+  .acct-card .bal { margin-left: auto; font-family: var(--mono); font-size: 12.5px; color: var(--ok); }
+  .acct-card .meta { color: var(--muted); font-size: 11px; margin-top: 3px; font-family: var(--mono); }
+  .usage-chip { font-family: var(--mono); font-size: 11.3px; background: var(--chip); border-radius: 6px; padding: 3px 9px; display: inline-block; margin: 2px 5px 2px 0; color: var(--muted); }
+  .usage-chip b { color: var(--text); font-weight: 600; }
+  .empty { color: var(--muted); font-style: italic; padding: 16px 6px; font-size: 13px; }
+  .toast { position: fixed; bottom: 18px; right: 18px; background: var(--panel3); border: 1px solid var(--border2); padding: 11px 17px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow); opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; max-width: 440px; z-index: 100; }
+  .toast.show { opacity: 1; transform: none; }
+  .scenario-card { background: var(--panel); border: 1px solid var(--border); border-radius: 11px; padding: 13px 15px; margin-bottom: 10px; cursor: pointer; transition: border-color .12s; }
+  .scenario-card:hover { border-color: var(--accent); }
+  .scenario-card .t { font-weight: 650; font-size: 13.5px; }
+  .scenario-card .t .ref { color: var(--faint); font-weight: 400; font-size: 11.5px; margin-left: 8px; font-family: var(--mono); }
+  .scenario-card .s { color: var(--muted); font-size: 12.3px; margin-top: 3px; line-height: 1.55; }
+  .step-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .step { display: flex; gap: 10px; align-items: flex-start; background: var(--panel2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; }
+  .step .n { width: 22px; height: 22px; border-radius: 50%; background: var(--panel3); color: var(--accent2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex: none; margin-top: 1px; }
+  .step .body { font-size: 12.8px; }
+  .step .expect { margin-left: 8px; }
+  .step.done { opacity: .55; }
+  .step .run { margin-left: auto; flex: none; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 12.8px; }
+  .kv .k { color: var(--muted); }
+  details.help { margin-top: 12px; }
+  details.help summary { cursor: pointer; color: var(--accent2); font-size: 12.5px; }
+  details.help .body { margin-top: 8px; color: var(--muted); font-size: 12.5px; line-height: 1.65; background: var(--panel2); border-radius: 9px; padding: 10px 14px; }
+  code { font-family: var(--mono); font-size: 11.8px; background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><b>Limit &amp; Rule Configuration</b><span>simulator · V5 spec</span></div>
+  <div class="spacer"></div>
+  <div class="world-summary">
+    <span>ops <b id="ws-ops">–</b></span><span>products <b id="ws-products">–</b></span>
+    <span>tiers <b id="ws-tiers">–</b></span><span>accounts <b id="ws-accounts">–</b></span>
+  </div>
+  <button class="ghost small" id="btn-blank" title="Empty world: no operations, products, limits, rules or accounts — configure everything yourself from §3 onward">◻ Day 0 — empty world</button>
+  <button class="ghost small" id="btn-reset" title="Load the pre-configured world from the spec: 7 operations, 4 products, 4 tiers, seeded limits/rules and Aisha's accounts">↨ Load configured world</button>
+</header>
+
+<div class="shell">
+  <nav>
+    <div class="nav-item active" data-view="simulate"><span class="ico">⚡</span> Simulate</div>
+    <div class="nav-item" data-view="accounts"><span class="ico">👤</span> Accounts</div>
+    <div class="nav-item" data-view="config"><span class="ico">⚙️</span> Configuration</div>
+    <div class="nav-item" data-view="activity"><span class="ico">🧾</span> Activity</div>
+    <div class="nav-item" data-view="scenarios"><span class="ico">📖</span> Doc scenarios</div>
+    <div class="nav-gap"></div>
+    <div class="nav-foot">pipeline: core engine → product → rules → limits<br>§9 — first "no" wins</div>
+  </nav>
+
+  <main>
+    <!-- ================= SIMULATE ================= -->
+    <section class="view active" id="view-simulate">
+      <div class="view-head"><h1>Simulate a transaction</h1><span class="sub">dry-run checks every gate; execute also records usage &amp; moves the balance</span></div>
+      <div class="grid3">
+        <div>
+          <div class="card" id="sim-panel">
+            <div class="row">
+              <div><label class="f">Account</label><select id="sim-account"></select></div>
+            </div>
+            <label class="f">Operation — hover to see what's blocked</label>
+            <select id="sim-operation"></select>
+            <div id="sim-op-hint" class="note" style="margin-top:5px;min-height:16px"></div>
+            <div class="row">
+              <div><label class="f">Amount (BDT)</label><input id="sim-amount" type="number" value="9000" min="1"></div>
+              <div><label class="f">Simulated date (§6.4)</label><input id="sim-when" type="date"></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <button class="primary" id="btn-check">Check</button>
+              <button class="subtle" id="btn-commit">Execute</button>
+            </div>
+            <details class="help"><summary>usage for this account</summary><div class="body" id="sim-usage"></div></details>
+          </div>
+
+          <h2>Effective limits for this operation</h2>
+          <div class="card" id="sim-prelimits"><div class="empty">Pick an account and operation to preview the numbers that would apply — before running anything.</div></div>
+        </div>
+
+        <div>
+          <h2 style="margin-top:0">Result</h2>
+          <div id="verdict-box"><div class="card empty">Run a transaction to see the verdict and the gate-by-gate trace.</div></div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:16px">
+        <div>
+          <h2 style="margin-top:0">Decision trace (§9)</h2>
+          <div class="card" id="trace-box"><div class="empty">No transaction yet.</div></div>
+        </div>
+        <div>
+          <h2 style="margin-top:0">Limit checks</h2>
+          <div class="card" id="limits-box"><div class="empty">No transaction yet.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ACCOUNTS ================= -->
+    <section class="view" id="view-accounts">
+      <div class="view-head">
+        <h1>Accounts</h1><span class="sub">onboard, inspect capabilities, move tiers</span>
+        <div class="grow"></div>
+        <button class="primary small" id="btn-onboard">+ Onboard account</button>
+      </div>
+      <div class="card" style="padding:0;overflow-x:auto"><table id="accounts-table"></table></div>
+
+      <div id="acct-detail" style="margin-top:18px"></div>
+    </section>
+
+    <!-- ================= CONFIG ================= -->
+    <section class="view" id="view-config">
+      <div class="view-head"><h1>Configuration</h1><span class="sub">the four layers — everything the engine consults</span></div>
+      <div class="tabs" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div class="tab active" data-tab="ops" style="padding:7px 14px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:650;border-bottom:2px solid transparent;margin-bottom:-1px">Core engine (§3)</div>
+        <div class="tab" data-tab="products" style="padding:7px 14px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:650;border-bottom:2px solid transparent;margin-bottom:-1px">Products (§4)</div>
+        <div class="tab" data-tab="tiers" style="padding:7px 14px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:650;border-bottom:2px solid transparent;margin-bottom:-1px">Tiers</div>
+        <div class="tab" data-tab="limits" style="padding:7px 14px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:650;border-bottom:2px solid transparent;margin-bottom:-1px">Limits (§6)</div>
+        <div class="tab" data-tab="rules" style="padding:7px 14px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:650;border-bottom:2px solid transparent;margin-bottom:-1px">Rules (§7)</div>
+      </div>
+      <div id="cfg-ops"></div>
+      <div id="cfg-products" style="display:none"></div>
+      <div id="cfg-tiers" style="display:none"></div>
+      <div id="cfg-limits" style="display:none"></div>
+      <div id="cfg-rules" style="display:none"></div>
+    </section>
+
+    <!-- ================= ACTIVITY ================= -->
+    <section class="view" id="view-activity">
+      <div class="view-head"><h1>Activity</h1><span class="sub">every simulated transaction, newest first</span>
+        <div class="grow"></div><button class="ghost small" id="btn-clear-log">Clear log</button>
+      </div>
+      <div class="card" style="padding:0;overflow-x:auto"><table id="activity-table"></table></div>
+    </section>
+
+    <!-- ================= SCENARIOS ================= -->
+    <section class="view" id="view-scenarios">
+      <div class="view-head"><h1>Doc scenarios</h1><span class="sub">one-click walkthroughs from the specification</span></div>
+      <div id="scenario-list"></div>
+      <div id="scenario-runner" style="margin-top:18px"></div>
+    </section>
+  </main>
+</div>
+
+<!-- modal root -->
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ================= state & helpers ================= */
+let STATE = null, CAPS = null, lastDecision = null, selectedAccount = null, scenarios = [];
+
+const $ = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat("en-IN").format(n || 0);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function toast(msg, ms = 2800) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), ms);
+}
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
+  if (!res.ok) { let m = await res.text(); try { m = JSON.parse(m).error || m; } catch {} throw new Error(m || res.statusText); }
+  return res.json();
+}
+function modal(html) { $("modal").innerHTML = html; $("overlay").classList.add("show"); }
+function closeModal() { $("overlay").classList.remove("show"); }
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+/* ================= navigation ================= */
+document.querySelectorAll(".nav-item").forEach(n => n.onclick = () => {
+  document.querySelectorAll(".nav-item").forEach(x => x.classList.toggle("active", x === n));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + n.dataset.view));
+  if (n.dataset.view === "accounts") renderAccountsView();
+  if (n.dataset.view === "config") renderConfig();
+  if (n.dataset.view === "activity") renderActivity();
+  if (n.dataset.view === "scenarios") renderScenarios();
+});
+
+/* ================= boot / refresh ================= */
+async function refresh(keepDecision = true) {
+  STATE = await api("/api/state");
+  if (!keepDecision) lastDecision = null;
+  // null-safe: an empty day-0 world marshals [] collections
+  STATE.config.operations = STATE.config.operations || [];
+  STATE.config.products = STATE.config.products || {};
+  STATE.config.tiers = STATE.config.tiers || [];
+  STATE.config.limits = STATE.config.limits || [];
+  STATE.config.rules = STATE.config.rules || [];
+  STATE.usage = STATE.usage || [];
+  STATE.activity = STATE.activity || [];
+  if (!selectedAccount || !STATE.accounts[selectedAccount]) selectedAccount = Object.keys(STATE.accounts).sort()[0] || null;
+  $("ws-ops").textContent = STATE.config.operations.length;
+  $("ws-products").textContent = Object.keys(STATE.config.products).length;
+  $("ws-tiers").textContent = STATE.config.tiers.length;
+  $("ws-accounts").textContent = Object.keys(STATE.accounts).length;
+  renderSimPanel();
+  if ($("view-accounts").classList.contains("active")) renderAccountsView();
+  if ($("view-config").classList.contains("active")) renderConfig();
+  if ($("view-activity").classList.contains("active")) renderActivity();
+}
+async function refreshCaps() {
+  if (!selectedAccount) { CAPS = null; return; }
+  try { CAPS = await api(`/api/accounts/${selectedAccount}/capabilities`); } catch { CAPS = null; }
+  renderSimPanel();
+}
+
+/* ================= SIMULATE view ================= */
+function renderSimPanel() {
+  const accSel = $("sim-account");
+  const prev = accSel.value;
+  accSel.innerHTML = Object.values(STATE.accounts).sort((a, b) => a.id < b.id ? -1 : 1)
+    .map(a => `<option value="${esc(a.id)}">${esc(a.id)} — ${esc(a.product)} # ${esc(a.tier)}</option>`).join("");
+  if (prev && STATE.accounts[prev]) accSel.value = prev; else if (selectedAccount) accSel.value = selectedAccount;
+  selectedAccount = accSel.value || null;
+
+  const acct = STATE.accounts[selectedAccount];
+  const opSel = $("sim-operation");
+  const prevOp = opSel.value;
+  if (acct) {
+    const offered = STATE.config.products[acct.product] || [];
+    opSel.innerHTML = STATE.config.operations.map(o => {
+      const isOff = !offered.includes(o.name);
+      return `<option value="${esc(o.name)}" ${isOff ? 'style="color:var(--faint)"' : ""}>${esc(o.name)}${isOff ? "  (not on product menu)" : ""}</option>`;
+    }).join("");
+    if (prevOp && [...opSel.options].some(o => o.value === prevOp)) opSel.value = prevOp;
+    if (!opSel.value) opSel.selectedIndex = 0;
+  } else opSel.innerHTML = "";
+  // day-0 world: nothing to simulate yet — guide the user instead
+  const emptyWorld = !STATE.config.operations.length && !Object.keys(STATE.accounts).length;
+  $("sim-op-hint").innerHTML = emptyWorld
+    ? `<span style="color:var(--warn)">◻ day 0 — no operations configured. Go to Configuration → Core engine (§3) to build the master menu first.</span>`
+    : (!Object.keys(STATE.accounts).length && !acct
+        ? `<span style="color:var(--warn)">◻ no accounts yet — onboard one from the Accounts view.</span>`
+        : "");
+  if (emptyWorld) $("sim-prelimits").innerHTML = `<div class="empty">Nothing configured yet.</div>`;
+  updateOpHint();
+  $("sim-usage").innerHTML = usageHtml(selectedAccount);
+}
+
+function updateOpHint() {
+  const op = $("sim-operation").value;
+  const hint = $("sim-op-hint");
+  const pre = $("sim-prelimits");
+  // day-0 guidance set by renderSimPanel wins until a real op is selectable
+  if (!op) return;
+  if (!CAPS || !op) { hint.textContent = ""; return; }
+  const row = CAPS.ops.find(o => o.operation === op);
+  if (!row) { hint.textContent = ""; return; }
+  const statusText = {
+    OFFERED: `<span style="color:var(--ok)">● available</span> — ${esc(row.permissionTrace)}`,
+    NOT_OFFERED: `<span style="color:var(--faint)">○ not on this product's menu (§4) — fails gate 2</span>`,
+    BLOCKED_SERVICE: `<span style="color:var(--bad)">● blocked at SERVICE level</span> (${esc(row.blockedBy)}) — a broader OFF wins (§7.2)`,
+    BLOCKED_TIER: `<span style="color:var(--bad)">● blocked at TIER level</span> (${esc(row.blockedBy)}) — account ON cannot reopen it (§7.4.1)`,
+    BLOCKED_ACCOUNT: `<span style="color:var(--bad)">● blocked for this account</span> (§7.2)`,
+  }[row.status];
+  hint.innerHTML = statusText || "";
+
+  // pre-flight effective limits
+  if (!row.effectiveLimits.length) {
+    pre.innerHTML = `<div class="empty">No limit configured for ${esc(op)} at any level — unrestricted (§6.3 note).</div>`;
+  } else {
+    let html = `<table><tr><th>op · metric · period</th><th>effective</th><th>from</th><th>state</th></tr>`;
+    row.effectiveLimits.forEach(el => {
+      const state = el.enforced
+        ? (el.serviceCeiling != null && !el.serviceLive ? `<span class="pill ok">LIVE</span> <span class="pill off">cap skipped</span>` : `<span class="pill ok">LIVE</span>`)
+        : `<span class="pill off">DORMANT</span>`;
+      const cap = el.serviceCeiling != null ? `<div class="note dim">cap ${fmt(el.serviceCeiling)}</div>` : "";
+      html += `<tr>
+        <td class="mono">${esc(el.operation)}<br><span class="note">${esc(el.metric)} · ${esc(el.period)}</span></td>
+        <td><span class="pill lvl-${esc(el.level)}">${esc(el.level)}</span> <span class="num" style="display:inline-block">${fmt(el.ceiling)}</span>${cap}</td>
+        <td class="note mono">${esc(el.from)}${el.note ? `<div class="note dim" style="max-width:210px">${esc(el.note)}</div>` : ""}</td>
+        <td>${state}</td></tr>`;
+    });
+    pre.innerHTML = html + `</table><div class="note" style="margin-top:8px">Account overrides tier per op·metric·period (§6.3.1); the service ceiling caps both. DORMANT = enforcement switch OFF at the level supplying the number (§7.4.2).</div>`;
+  }
+}
+
+function usageHtml(accountId) {
+  const rows = (STATE.usage || []).filter(u => u.accountId === accountId);
+  if (!rows.length) return `<span class="dim">no usage recorded</span>`;
+  return rows.map(u => `<span class="usage-chip">${esc(u.operation)} ${esc(u.metric)} · ${esc(u.window)} → <b>${u.metric === "COUNT" ? u.count : fmt(u.amount)}</b></span>`).join("") || `<span class="dim">none</span>`;
+}
+
+async function simulate(commit, override) {
+  if (!selectedAccount) return toast(Object.keys(STATE.accounts).length ? "Select an account first" : "No accounts yet — onboard one in the Accounts view");
+  if (!$("sim-operation").value) return toast("No operation selected — add operations in Configuration first");
+  const body = Object.assign({
+    accountId: selectedAccount,
+    operation: $("sim-operation").value,
+    amount: parseInt($("sim-amount").value || "0", 10),
+    when: $("sim-when").value || undefined,
+    commit,
+  }, override || {});
+  try {
+    lastDecision = await api("/api/simulate", { method: "POST", body: JSON.stringify(body) });
+    renderVerdict(); renderTrace(); renderLimits();
+    await refresh(); await refreshCaps();
+    if (commit) toast(lastDecision.allowed ? "Executed — usage & balance updated" : "Rejected — nothing recorded");
+  } catch (e) { toast("Error: " + e.message); }
+}
+
+function renderVerdict() {
+  const box = $("verdict-box");
+  if (!lastDecision) { box.innerHTML = `<div class="empty">Run a transaction to see the verdict and the gate-by-gate trace.</div>`; return; }
+  const d = lastDecision;
+  box.innerHTML = `
+    <div class="verdict ${d.allowed ? "allowed" : "blocked"}">
+      <div class="word">${d.allowed ? "✔ ALLOWED" : "✘ REJECTED"}</div>
+      <div class="why">${esc(d.reason)}</div>
+      <div class="meta">${esc(d.summary.account)} · ${esc(d.summary.product)} # ${esc(d.summary.accountType)} # ${esc(d.summary.tier)}<br>
+        ${esc(d.summary.operation)} · BDT ${fmt(d.summary.amount)} · ${esc((d.summary.when || "").replace("T", " ").slice(0, 16))}</div>
+    </div>`;
+}
+function renderTrace() {
+  const box = $("trace-box");
+  if (!lastDecision) { box.innerHTML = `<div class="empty">No transaction yet.</div>`; return; }
+  box.innerHTML = "";
+  lastDecision.trace.forEach(st => {
+    const cls = st.result === "PASS" ? "pass" : st.result === "FAIL" ? "fail" : "skip";
+    const div = document.createElement("div");
+    div.className = "gate " + cls;
+    div.innerHTML = `<div class="node">${st.result === "PASS" ? "✓" : st.result === "FAIL" ? "✕" : "–"}</div>
+      <div><div class="g-title">${esc(st.gate)}</div><div class="g-q">${esc(st.question)}</div>
+      <div class="g-detail"><span class="tag">${esc(st.result)}</span>${esc(st.detail)}</div></div>`;
+    box.appendChild(div);
+  });
+}
+function renderLimits() {
+  const box = $("limits-box");
+  if (!lastDecision) { box.innerHTML = `<div class="empty">No transaction yet.</div>`; return; }
+  const checks = lastDecision.limitChecks || [];
+  if (!checks.length) { box.innerHTML = `<div class="empty">No limits configured for this operation — unrestricted (§6.3 note).</div>`; return; }
+  let html = `<table><tr><th>combination</th><th>ceiling (from)</th><th>used + this = total</th><th>result</th></tr>`;
+  checks.forEach(lc => {
+    const res = !lc.enforced ? `<span class="pill off">DORMANT</span>` : lc.pass ? `<span class="pill ok">PASS</span>` : `<span class="pill no">BREACH</span>`;
+    html += `<tr>
+      <td class="mono">${esc(lc.operation)}<br><span class="note">${esc(lc.metric)} · ${esc(lc.period)}</span></td>
+      <td><span class="pill lvl-${esc(lc.level)}">${esc(lc.level)}</span> <span class="num" style="display:inline">${fmt(lc.ceiling)}</span><br><span class="note">${esc(lc.from)}</span></td>
+      <td class="num">${fmt(lc.used)} + ${fmt(lc.requested)} = <b>${fmt(lc.wouldBe)}</b></td>
+      <td>${res}${lc.note ? `<div class="note" style="margin-top:4px;max-width:200px">${esc(lc.note)}</div>` : ""}</td></tr>`;
+  });
+  box.innerHTML = html + "</table>";
+}
+
+$("sim-account").onchange = async e => { selectedAccount = e.target.value; await refreshCaps(); };
+$("sim-operation").onchange = updateOpHint;
+$("btn-check").onclick = () => simulate(false);
+$("btn-commit").onclick = () => simulate(true);
+$("btn-reset").onclick = async () => {
+  await api("/api/reset", { method: "POST" });
+  lastDecision = null; selectedAccount = null;
+  await refresh(false); await refreshCaps();
+  renderVerdict(); renderTrace(); renderLimits();
+  if ($("view-accounts").classList.contains("active")) renderAccountsView();
+  if ($("view-config").classList.contains("active")) renderConfig();
+  if ($("view-activity").classList.contains("active")) renderActivity();
+  toast("Loaded the configured world — seeded operations, products, tiers, limits, rules and Aisha's accounts");
+};
+$("btn-blank").onclick = async () => {
+  await api("/api/reset-blank", { method: "POST" });
+  lastDecision = null; selectedAccount = null; acctDetailId = null; ruleScope = null;
+  await refresh(false); await refreshCaps();
+  renderVerdict(); renderTrace(); renderLimits();
+  if ($("view-accounts").classList.contains("active")) renderAccountsView();
+  if ($("view-config").classList.contains("active")) renderConfig();
+  if ($("view-activity").classList.contains("active")) renderActivity();
+  document.querySelector('.nav-item[data-view="config"]').click();
+  toast("Day 0 — nothing configured. Start at Core engine (§3): add operations, then products, tiers, limits, rules, and onboard accounts.", 5200);
+};
+
+/* ================= ACCOUNTS view ================= */
+let acctDetailId = null;
+function renderAccountsView() {
+  const t = $("accounts-table");
+  const accts = Object.values(STATE.accounts).sort((a, b) => a.id < b.id ? -1 : 1);
+  t.innerHTML = `<tr><th>account</th><th>product</th><th>type</th><th>tier</th><th style="text-align:right">balance</th><th>config (§8)</th></tr>` +
+    accts.map(a => `<tr class="clickable ${a.id === acctDetailId ? "selected" : ""}" data-acct="${esc(a.id)}" style="${a.id === acctDetailId ? "background:var(--panel2)" : ""}">
+      <td class="mono"><b>${esc(a.id)}</b></td>
+      <td class="note mono">${esc(a.product)}</td>
+      <td>${a.accountType === "SPECIAL_ACCOUNT" ? `<span class="pill info">SPECIAL</span>` : `<span class="pill grey">GENERAL</span>`}</td>
+      <td class="mono">${esc(a.tier)}</td>
+      <td class="num">${fmt(a.balance)}</td>
+      <td class="note mono">${a.accountType === "SPECIAL_ACCOUNT" ? (Object.entries(a.config || {}).map(([k, v]) => `${esc(k)}=${esc(v)}`).join(" · ") || "—") : `<span class="dim">—</span>`}</td>
+    </tr>`).join("");
+  t.querySelectorAll("[data-acct]").forEach(tr => tr.onclick = () => { acctDetailId = tr.dataset.acct; renderAccountsView(); renderAcctDetail(); });
+  renderAcctDetail();
+}
+
+async function renderAcctDetail() {
+  const box = $("acct-detail");
+  if (!acctDetailId || !STATE.accounts[acctDetailId]) { box.innerHTML = ""; return; }
+  const a = STATE.accounts[acctDetailId];
+  let caps;
+  try { caps = await api(`/api/accounts/${acctDetailId}/capabilities`); } catch { box.innerHTML = ""; return; }
+
+  let html = `<div class="view-head" style="margin-top:8px"><h1 style="font-size:16px">${esc(a.id)}</h1>
+    <span class="sub mono">${esc(a.product)} # ${esc(a.accountType)} # ${esc(a.tier)}</span><div class="grow"></div>
+    <button class="ghost small" id="btn-acct-edit">✎ Edit</button>
+    <button class="ghost small" id="btn-acct-move">⇄ Move tier</button>
+    <button class="ghost small" id="btn-acct-clear">Clear usage</button>
+    <button class="danger small" id="btn-acct-del">Delete</button></div>
+    <div class="grid2">
+      <div class="card"><h3 style="margin-top:0">Capability matrix — what every operation resolves to</h3>
+      <div style="overflow-x:auto"><table>
+      <tr><th>operation</th><th>status</th><th>permission switches</th><th>effective limits</th></tr>`;
+  caps.ops.forEach(op => {
+    const badge = {
+      OFFERED: `<span class="pill ok">OFFERED</span>`,
+      NOT_OFFERED: `<span class="pill grey">NOT ON MENU</span>`,
+      BLOCKED_SERVICE: `<span class="pill no">OFF · SERVICE</span>`,
+      BLOCKED_TIER: `<span class="pill no">OFF · TIER</span>`,
+      BLOCKED_ACCOUNT: `<span class="pill no">OFF · ACCOUNT</span>`,
+    }[op.status];
+    const lims = op.effectiveLimits.length
+      ? op.effectiveLimits.map(el => `<div class="mono" style="margin:2px 0"><span class="pill lvl-${esc(el.level)}">${esc(el.level)}</span> ${esc(el.metric)}·${esc(el.period)} <b>${fmt(el.ceiling)}</b>${el.enforced ? "" : ' <span class="pill off">dormant</span>'}</div>`).join("")
+      : `<span class="dim">no limit</span>`;
+    html += `<tr><td class="mono">${esc(op.operation)}</td><td>${badge}</td><td class="note" style="font-size:11.3px">${esc(op.permissionTrace)}</td><td>${lims}</td></tr>`;
+  });
+  html += `</table></div></div>
+    <div>
+      <div class="card"><h3 style="margin-top:0">Identity (§1.1)</h3>
+        <div class="kv">
+          <span class="k">product</span><span class="mono">${esc(a.product)}</span>
+          <span class="k">account type</span><span class="mono">${esc(a.accountType)}</span>
+          <span class="k">tier</span><span class="mono">${esc(a.tier)}</span>
+          <span class="k">balance</span><span class="num" style="text-align:left">${fmt(a.balance)}</span>
+        </div></div>
+      ${a.accountType === "SPECIAL_ACCOUNT" ? `<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Account config table (§8)</h3>
+        ${Object.entries(a.config || {}).map(([k, v]) => `<div class="kv" style="margin-bottom:6px"><span class="k mono">${esc(k)}</span><span><b>${esc(v)}</b></span></div>`).join("") || `<span class="dim">—</span>`}
+        <div class="note" style="margin-top:8px">ALLOW_NEGATIVE_BALANCE feeds the balance gate. This table applies to SPECIAL accounts only (§5).</div></div>` : ""}
+      <div class="card" style="margin-top:14px"><h3 style="margin-top:0">Usage windows</h3>${usageHtml(a.id)}</div>
+      <div class="card" style="margin-top:14px"><h3 style="margin-top:0">Recent activity</h3>
+        ${activityFor(a.id)}</div>
+    </div></div>`;
+  box.innerHTML = html;
+
+  $("btn-acct-edit").onclick = () => openAccountModal(a);
+  $("btn-acct-move").onclick = () => openMoveTierModal(a);
+  $("btn-acct-clear").onclick = async () => { await api("/api/usage/reset", { method: "POST", body: JSON.stringify({ accountId: a.id }) }); await refresh(); renderAccountsView(); toast("Usage cleared"); };
+  $("btn-acct-del").onclick = async () => {
+    if (!confirm(`Delete ${a.id}? Its usage and overrides at ACCOUNT scope referencing it become orphaned.`)) return;
+    await api(`/api/accounts/${a.id}`, { method: "DELETE" });
+    if (selectedAccount === a.id) selectedAccount = null;
+    if (acctDetailId === a.id) acctDetailId = null;
+    await refresh(); await refreshCaps(); renderAccountsView(); toast("Deleted");
+  };
+}
+
+function activityFor(accountId) {
+  const rows = (STATE.activity || []).filter(e => e.accountId === accountId).slice(0, 8);
+  if (!rows.length) return `<span class="dim">no transactions yet</span>`;
+  return `<table>${rows.map(e => `<tr><td class="note mono">${esc((e.when || "").slice(0, 10))}</td>
+    <td class="mono">${esc(e.operation)}</td><td class="num">${fmt(e.amount)}</td>
+    <td>${e.allowed ? `<span class="pill ok">OK</span>` : `<span class="pill no">REJ</span>`}${e.committed ? "" : ' <span class="pill grey">dry</span>'}</td></tr>`).join("")}</table>`;
+}
+
+/* -------- onboarding / edit modal -------- */
+function openAccountModal(existing) {
+  const a = existing || {};
+  const products = Object.keys(STATE.config.products).sort();
+  const tiers = STATE.config.tiers;
+  if (!products.length) return toast("Day 0 — create a product configuration (§4) before onboarding accounts");
+  const isEdit = !!existing;
+  modal(`<h2>${isEdit ? "Edit " + esc(a.id) : "Onboard a new account"}</h2>
+    <div class="sub">Day 1 of the §0 story: the product decides the menu, the tier decides the group, the type decides special handling.</div>
+    <div class="form-grid">
+      ${isEdit ? "" : `<div><label class="f">Account ID</label><input id="fm-id" placeholder="ACC-101" value=""></div>`}
+      <div><label class="f">Opening balance (BDT)</label><input id="fm-balance" type="number" value="10000" min="0" value="${a.balance ?? 10000}"></div>
+      <div class="full"><label class="f">Product configuration (§4)</label>
+        <select id="fm-product">${products.map(p => `<option ${p === (a.product || products[0]) ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+      <div><label class="f">Account type (§5)</label>
+        <select id="fm-type">
+          <option value="GENERAL_ACCOUNT" ${a.accountType !== "SPECIAL_ACCOUNT" ? "selected" : ""}>GENERAL_ACCOUNT</option>
+          <option value="SPECIAL_ACCOUNT" ${a.accountType === "SPECIAL_ACCOUNT" ? "selected" : ""}>SPECIAL_ACCOUNT</option>
+        </select></div>
+      <div><label class="f">Tier</label>
+        <select id="fm-tier">${tiers.map(t => `<option ${t === (a.tier || "TIER_1") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>
+      <div class="full" id="fm-config-block"><label class="f">Account config table (§8) — SPECIAL accounts only</label>
+        <div class="card" style="padding:10px 12px;background:var(--panel2)">
+          <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="note" style="flex:none">ALLOW_NEGATIVE_BALANCE</span>
+            <select id="fm-neg" style="width:90px"><option value="NO" ${(a.config || {}).ALLOW_NEGATIVE_BALANCE !== "YES" ? "selected" : ""}>NO</option><option value="YES" ${(a.config || {}).ALLOW_NEGATIVE_BALANCE === "YES" ? "selected" : ""}>YES</option></select>
+            <span class="note" style="flex:none">ALLOW_BACKDATED_TRANSACTION</span>
+            <select id="fm-back" style="width:90px"><option value="NO" ${(a.config || {}).ALLOW_BACKDATED_TRANSACTION !== "YES" ? "selected" : ""}>NO</option><option value="YES" ${(a.config || {}).ALLOW_BACKDATED_TRANSACTION === "YES" ? "selected" : ""}>YES</option></select>
+          </div>
+        </div></div>
+    </div>
+    <div class="actions">
+      <button class="ghost" onclick="closeModal()">Cancel</button>
+      <button class="primary" id="fm-save">${isEdit ? "Save" : "Onboard"}</button>
+    </div>`);
+  // §5: the Account Config Table is exclusively for SPECIAL accounts —
+  // hide the section entirely for GENERAL accounts.
+  const toggleConfigBlock = () => {
+    $("fm-config-block").style.display = $("fm-type").value === "SPECIAL_ACCOUNT" ? "" : "none";
+  };
+  $("fm-type").onchange = toggleConfigBlock;
+  toggleConfigBlock();
+  $("fm-save").onclick = async () => {
+    const type = $("fm-type").value;
+    const config = {};
+    if (type === "SPECIAL_ACCOUNT") {
+      config.ALLOW_NEGATIVE_BALANCE = $("fm-neg").value;
+      config.ALLOW_BACKDATED_TRANSACTION = $("fm-back").value;
+    }
+    const acct = {
+      id: isEdit ? a.id : ($("fm-id").value.trim() || ("ACC-" + String(Object.keys(STATE.accounts).length + 1).padStart(3, "0"))),
+      product: $("fm-product").value, accountType: type, tier: $("fm-tier").value,
+      balance: parseInt($("fm-balance").value || "0", 10), config,
+    };
+    try {
+      await api("/api/accounts", { method: "POST", body: JSON.stringify(acct) });
+      closeModal(); selectedAccount = acct.id; acctDetailId = acct.id;
+      await refresh(); await refreshCaps(); renderAccountsView();
+      toast(isEdit ? "Saved" : `Onboarded ${acct.id} — its identity is ${acct.product} # ${acct.accountType} # ${acct.tier}`);
+    } catch (e) { toast(e.message); }
+  };
+}
+$("btn-onboard").onclick = () => openAccountModal(null);
+
+function openMoveTierModal(a) {
+  modal(`<h2>Move ${esc(a.id)} to another tier</h2>
+    <div class="sub">§6.6.2: tier limits re-base to the new tier. Account-level overrides persist and must be re-configured explicitly if you want them changed.</div>
+    <label class="f">New tier</label>
+    <select id="mv-tier" style="width:100%">${STATE.config.tiers.map(t => `<option ${t === a.tier ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button>
+    <button class="primary" id="mv-go">Move</button></div>`);
+  $("mv-go").onclick = async () => {
+    try {
+      await api("/api/accounts", { method: "POST", body: JSON.stringify({ ...a, tier: $("mv-tier").value }) });
+      closeModal(); await refresh(); await refreshCaps(); renderAccountsView();
+      toast(`${a.id}: ${a.tier} → ${$("mv-tier").value}. §6.8.1: any account-level overrides no longer follow tier changes.`);
+    } catch (e) { toast(e.message); }
+  };
+}
+
+/* ================= CONFIG view ================= */
+let cfgTab = "ops";
+document.querySelectorAll("#view-config .tab").forEach(t => t.onclick = () => {
+  cfgTab = t.dataset.tab;
+  document.querySelectorAll("#view-config .tab").forEach(x => {
+    const on = x === t;
+    x.style.color = on ? "var(--accent2)" : "var(--muted)";
+    x.style.borderBottom = on ? "2px solid var(--accent)" : "2px solid transparent";
+  });
+  ["ops", "products", "tiers", "limits", "rules"].forEach(k => $("cfg-" + k).style.display = k === cfgTab ? "" : "none");
+});
+
+function renderConfig() { renderCfgOps(); renderCfgProducts(); renderCfgTiers(); renderCfgLimits(); renderCfgRules(); tabDots(); }
+
+/* dot each tab: green when configured, hollow when still empty */
+function tabDots() {
+  const cfg = STATE.config;
+  const state = {
+    ops: cfg.operations.length > 0,
+    products: Object.keys(cfg.products).length > 0,
+    tiers: cfg.tiers.filter(t => t !== "DEFAULT_TIER").length > 0,
+    limits: cfg.limits.length > 0,
+    rules: cfg.rules.length > 0,
+  };
+  document.querySelectorAll("#view-config .tab").forEach(t => {
+    const on = state[t.dataset.tab];
+    t.querySelector(".dot")?.remove();
+    const d = document.createElement("span");
+    d.className = "dot";
+    d.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:7px;vertical-align:middle;
+      ${on ? "background:var(--ok)" : "background:transparent;border:1.5px solid var(--faint)"}`;
+    t.appendChild(d);
+  });
+}
+
+/* Shared empty-state for Configuration tabs in a day-0 world: consistent
+   layout, the tab's own add-form (so you can always add things), a pointer to
+   the next step in the §3→§4→tiers→limits→rules build order, and a wire-up
+   callback for the form's handlers. formHtml may be null (rules tab has no
+   add-form — switches attach to existing limits). */
+function cfgEmpty(container, tabKey, formHtml, wireForm) {
+  const cfg = STATE.config;
+  const steps = [
+    { key: "ops",      n: 1, label: "Core engine (§3)",  have: cfg.operations.length > 0,        need: "Add the operations the platform can perform — the master menu." },
+    { key: "products", n: 2, label: "Products (§4)",     have: Object.keys(cfg.products).length > 0, need: "Define products and tick which master-menu operations each offers." },
+    { key: "tiers",    n: 3, label: "Tiers",             have: cfg.tiers.filter(t => t !== "DEFAULT_TIER").length > 0, need: "Add customer tiers (TIER_1 …). DEFAULT_TIER always exists (§1)." },
+    { key: "limits",   n: 4, label: "Limits (§6)",       have: cfg.limits.length > 0,            need: "Cap operations: level · metric · period · ceiling." },
+    { key: "rules",    n: 5, label: "Rules (§7)",        have: cfg.rules.length > 0,             need: "Flip permission and enforcement switches — optional; missing rows default ON." },
+  ];
+  const first = steps.find(s => !s.have);
+  const myIdx = { ops: 1, products: 2, tiers: 3, limits: 4, rules: 5 }[tabKey];
+
+  const rows = steps.map(s => `
+    <div style="display:flex;gap:12px;align-items:center;padding:7px 0;${s.have || s.n === myIdx ? "" : "opacity:.45"}">
+      <span style="width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
+        ${s.have ? "background:rgba(46,204,113,.16);color:var(--ok)" : s.n === myIdx ? "background:rgba(79,140,255,.2);color:var(--accent2)" : "background:var(--chip);color:var(--faint)"}">${s.have ? "✓" : s.n}</span>
+      <span style="flex:none;font-weight:600;${s.n === myIdx ? "color:var(--accent2)" : ""}">${s.label}</span>
+      <span class="note">${s.have ? "configured" : s.need}</span>
+    </div>`).join("");
+
+  const tabNeeds = {
+    ops: "No operations on the master menu yet — nothing else can be configured until §3 has entries.",
+    products: "No products defined. Products inherit operations from the master menu (§4); add operations first if the menu is empty.",
+    tiers: "Only DEFAULT_TIER exists — the tier automatically assigned when nothing specific fits (§1). Add named tiers to differentiate customer groups.",
+    limits: "No limits configured. Every operation is currently unrestricted (§6.3 note: a missing limit is not zero).",
+    rules: "No rules configured. All permission and enforcement switches are at their default ON (§7.4.2) — you can flip them once limits or operations exist.",
+  }[tabKey];
+
+  const nextLabel = first ? `— next: ${first.label}` : "— complete ✓";
+  $(container).innerHTML = `
+    <div class="card">
+      <div class="empty" style="padding:4px 0 10px">${tabNeeds[tabKey]}</div>
+      ${formHtml || ""}
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:${formHtml ? "12px" : "0"}">
+        <div class="note" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:4px">Build order ${nextLabel}</div>
+        ${rows}
+      </div>
+    </div>`;
+  if (wireForm) wireForm();
+  return true;
+}
+
+function renderCfgOps() {
+  const cfg = STATE.config;
+  // add-form shared by the normal render and the day-0 empty state
+  const opForm = `
+      <div class="toolbar" style="margin-top:12px">
+        <input id="op-name" placeholder="CREDIT_CARD_BILL_PAYMENT" style="width:250px">
+        <select id="op-dir" style="width:130px"><option>DEBIT</option><option>CREDIT</option><option>NONE</option></select>
+        <input id="op-desc" placeholder="description (optional)" style="width:280px">
+        <button class="primary small" id="op-add">+ Add operation</button>
+      </div>`;
+  const wireOpForm = () => {
+    $("op-add").onclick = async () => {
+      const name = $("op-name").value.trim().toUpperCase().replace(/\s+/g, "_");
+      if (!name) return toast("Name required");
+      try {
+        await api("/api/config/operations", { method: "POST", body: JSON.stringify({ name, direction: $("op-dir").value, description: $("op-desc").value.trim() }) });
+        await refresh(); await refreshCaps(); renderConfig(); toast(`Added ${name} to the master menu`);
+      } catch (e) { toast(e.message); }
+    };
+  };
+  if (!cfg.operations.length) { cfgEmpty("cfg-ops", "ops", opForm, wireOpForm); return; }
+  $("cfg-ops").innerHTML = `
+    <div class="card"><div class="toolbar" style="margin-bottom:6px"><b style="font-size:14px">Core Engine Service Configuration</b>
+      <div class="grow"></div><span class="note">the master menu — rules &amp; limits may only reference these (§3.1)</span></div>
+      <table><tr><th>operation</th><th>direction</th><th>description</th><th></th></tr>
+      ${cfg.operations.map(o => `<tr>
+        <td class="mono"><b>${esc(o.name)}</b></td><td class="note">${esc(o.direction)}</td><td class="note">${esc(o.description)}</td>
+        <td><button class="danger small" data-del-op="${esc(o.name)}">✕</button></td></tr>`).join("")}
+      </table>
+      ${opForm}
+      <div class="note" style="margin-top:8px">Deleting an operation also drops every rule and limit that referenced it (they fail §3.1 validation otherwise).</div>
+    </div>`;
+  wireOpForm();
+  $("cfg-ops").querySelectorAll("[data-del-op]").forEach(b => b.onclick = async () => {
+    const name = b.dataset.delOp;
+    // §3.1: strip referencing rules/limits, then remove
+    const cfg = JSON.parse(JSON.stringify(STATE.config));
+    cfg.operations = cfg.operations.filter(o => o.name !== name);
+    cfg.limits = cfg.limits.filter(l => l.operation !== name);
+    cfg.rules = cfg.rules.filter(r => r.operation !== name);
+    for (const p of Object.keys(cfg.products)) cfg.products[p] = cfg.products[p].filter(o => o !== name);
+    if (!confirm(`Remove ${name} from the master menu and every rule/limit/product entry referencing it?`)) return;
+    try { await api("/api/config", { method: "PUT", body: JSON.stringify(cfg) }); await refresh(); await refreshCaps(); renderConfig(); toast(`Removed ${name}`); }
+    catch (e) { toast(e.message); }
+  });
+}
+
+function renderCfgProducts() {
+  const cfg = STATE.config;
+  const prodForm = `
+      <div class="toolbar" style="margin-top:12px">
+        <input id="prod-name" placeholder="NEW_PRODUCT_NAME" style="width:250px">
+        <button class="primary small" id="prod-add">+ Add product</button>
+      </div>`;
+  const wireProdForm = () => {
+    $("prod-add").onclick = async () => {
+      const name = $("prod-name").value.trim().toUpperCase().replace(/\s+/g, "_");
+      if (!name) return toast("Name required");
+      try { await api(`/api/config/products/${name}`, { method: "PUT", body: JSON.stringify([]) }); await refresh(); renderConfig(); toast(`Added ${name} — now tick its operations`); }
+      catch (e) { toast(e.message); }
+    };
+  };
+  if (!Object.keys(cfg.products).length) { cfgEmpty("cfg-products", "products", prodForm, wireProdForm); return; }
+  $("cfg-products").innerHTML = `
+    <div class="card"><div class="toolbar" style="margin-bottom:6px"><b style="font-size:14px">Product Configuration</b>
+      <div class="grow"></div><span class="note">if it's not on the product menu, no account of that type can ever do it (§4)</span></div>
+      <table><tr><th>product</th><th>offers</th><th style="width:70px"></th></tr>
+      ${Object.entries(cfg.products).sort().map(([p, ops]) => `<tr>
+        <td class="mono"><b>${esc(p)}</b></td>
+        <td>${ops.map(o => `<span class="pill grey" style="margin:1px 3px 1px 0">${esc(o)}</span>`).join("") || '<span class="dim">offers nothing</span>'}</td>
+        <td><button class="ghost small" data-edit-product="${esc(p)}">✎</button> <button class="danger small" data-del-product="${esc(p)}">✕</button></td></tr>`).join("")}
+      </table>
+      ${prodForm}</div>`;
+  wireProdForm();
+  $("cfg-products").querySelectorAll("[data-del-product]").forEach(b => b.onclick = async () => {
+    if (!confirm(`Delete product ${b.dataset.delProduct}?`)) return;
+    try { await api(`/api/config/products/${b.dataset.delProduct}`, { method: "DELETE" }); await refresh(); renderConfig(); toast("Deleted"); }
+    catch (e) { toast(e.message); }
+  });
+  $("cfg-products").querySelectorAll("[data-edit-product]").forEach(b => b.onclick = () => {
+    const p = b.dataset.editProduct;
+    const ops = STATE.config.products[p] || [];
+    modal(`<h2>${esc(p)} — product menu (§4)</h2>
+      <div class="sub">Tick what this product offers. Unticked operations fail at gate 2 for every account of this product.</div>
+      <div class="card" style="background:var(--panel2);max-height:46vh;overflow-y:auto">
+        ${STATE.config.operations.map(o => `<label style="display:flex;gap:10px;align-items:center;padding:6px 4px;cursor:pointer">
+          <input type="checkbox" data-prod-op="${esc(o.name)}" ${ops.includes(o.name) ? "checked" : ""}>
+          <span class="mono">${esc(o.name)}</span> <span class="note">${esc(o.direction)} — ${esc(o.description)}</span></label>`).join("")}
+      </div>
+      <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button>
+      <button class="primary" id="pm-save">Save menu</button></div>`);
+    $("pm-save").onclick = async () => {
+      const chosen = [...document.querySelectorAll("[data-prod-op]:checked")].map(c => c.dataset.prodOp);
+      try { await api(`/api/config/products/${p}`, { method: "PUT", body: JSON.stringify(chosen) }); closeModal(); await refresh(); await refreshCaps(); renderConfig(); toast(`Saved ${p} menu`); }
+      catch (e) { toast(e.message); }
+    };
+  });
+}
+
+function renderCfgTiers() {
+  const cfg = STATE.config;
+  const tierForm = `
+      <div class="toolbar" style="margin-top:12px">
+        <input id="tier-name" placeholder="TIER_4" style="width:200px">
+        <button class="primary small" id="tier-add">+ Add tier</button>
+      </div>`;
+  const wireTierForm = () => {
+    $("tier-add").onclick = async () => {
+      const name = $("tier-name").value.trim().toUpperCase().replace(/\s+/g, "_");
+      if (!name) return toast("Name required");
+      try { await api("/api/config/tiers", { method: "POST", body: JSON.stringify({ name }) }); await refresh(); renderConfig(); toast(`Added ${name}`); }
+      catch (e) { toast(e.message); }
+    };
+  };
+  if (cfg.tiers.filter(t => t !== "DEFAULT_TIER").length === 0) { cfgEmpty("cfg-tiers", "tiers", tierForm, wireTierForm); return; }
+  $("cfg-tiers").innerHTML = `
+    <div class="card"><div class="toolbar" style="margin-bottom:6px"><b style="font-size:14px">Tiers</b>
+      <div class="grow"></div><span class="note">customer groups — DEFAULT_TIER is assigned when nothing specific fits (§1)</span></div>
+      <table><tr><th>tier</th><th>accounts</th><th></th></tr>
+      ${cfg.tiers.map(t => {
+        const n = Object.values(STATE.accounts).filter(a => a.tier === t).length;
+        return `<tr><td class="mono"><b>${esc(t)}</b></td><td class="note">${n} account(s)</td>
+          <td>${t === "DEFAULT_TIER" ? "" : `<button class="danger small" data-del-tier="${esc(t)}">✕</button>`}</td></tr>`;
+      }).join("")}
+      </table>
+      ${tierForm}
+      <div class="note" style="margin-top:8px">Tier limits are set per product#tier in the Limits tab. Moving an account between tiers re-bases its limits (§6.6.2) — use Accounts → Move tier.</div>
+    </div>`;
+  wireTierForm();
+  $("cfg-tiers").querySelectorAll("[data-del-tier]").forEach(b => b.onclick = async () => {
+    if (!confirm(`Delete tier ${b.dataset.delTier}?`)) return;
+    try { await api(`/api/config/tiers/${b.dataset.delTier}`, { method: "DELETE" }); await refresh(); renderConfig(); toast("Deleted"); }
+    catch (e) { toast(e.message); }
+  });
+}
+
+function renderCfgLimits() {
+  const cfg = STATE.config;
+  const limForm = `<div class="toolbar" style="margin-top:12px"><div class="grow"></div><button class="primary small" id="lim-add">+ Add limit</button></div>`;
+  const wireLimForm = () => { $("lim-add").onclick = () => openLimitModal(null); };
+  if (!cfg.limits.length) {
+    // empty state still offers the add button (modal needs ops to exist)
+    if (!cfg.operations.length) { cfgEmpty("cfg-limits", "limits", null, null); return; }
+    cfgEmpty("cfg-limits", "limits", limForm, wireLimForm);
+    return;
+  }
+  const rows = [...cfg.limits].sort((a, b) => (a.operation + a.scope).localeCompare(b.operation + b.scope));
+  const scopeLabel = l => l.scope + (l.level === "TIER" ? "" : "");
+  $("cfg-limits").innerHTML = `
+    <div class="card"><div class="toolbar" style="margin-bottom:6px"><b style="font-size:14px">Limits</b>
+      <div class="grow"></div><span class="note">precedence: account overrides tier per op·metric·period; service is the hard ceiling (§6.3)</span>
+      <button class="primary small" id="lim-add">+ Add limit</button></div>
+      <div style="overflow-x:auto"><table>
+      <tr><th>operation</th><th>metric</th><th>period</th><th>level</th><th>scope</th><th style="text-align:right">ceiling</th><th></th></tr>
+      ${rows.map((l, i) => `<tr>
+        <td class="mono">${esc(l.operation)}</td><td class="note">${esc(l.metric)}</td><td class="note">${esc(l.period)}</td>
+        <td><span class="pill lvl-${esc(l.level)}">${esc(l.level)}</span></td>
+        <td class="note mono">${esc(scopeLabel(l))}</td>
+        <td class="num"><b>${fmt(l.ceiling)}</b></td>
+        <td><button class="danger small" data-del-limit="${i}">✕</button></td></tr>`).join("")}
+      </table></div>
+      <div class="note" style="margin-top:8px">Removing an account-level override makes the tier limit effective again (§6.6.1) — the account does not become unrestricted.</div>
+    </div>`;
+  wireLimForm();
+  $("cfg-limits").querySelectorAll("[data-del-limit]").forEach(b => b.onclick = async () => {
+    try { await api("/api/config/limits", { method: "POST", body: JSON.stringify({ remove: rows[+b.dataset.delLimit] }) }); await refresh(); await refreshCaps(); renderConfig(); toast("Removed — tier limit (if any) becomes effective again"); }
+    catch (e) { toast(e.message); }
+  });
+}
+
+function openLimitModal(existing) {
+  const cfg = STATE.config;
+  if (!cfg.operations.length) return toast("Add operations to the master menu (§3) before configuring limits");
+  const l = existing || { level: "TIER", operation: cfg.operations[0]?.name || "", metric: "AMOUNT", period: "DAILY", ceiling: 10000, scope: "" };
+  modal(`<h2>${existing ? "Edit" : "Add"} limit</h2>
+    <div class="sub">A limit is a cap: operation · metric · period · ceiling, set at one of three levels (§6.1–§6.2).</div>
+    <div class="form-grid">
+      <div><label class="f">Operation (master menu §3.1)</label>
+        <select id="lf-op">${cfg.operations.map(o => `<option ${o.name === l.operation ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select></div>
+      <div><label class="f">Level</label>
+        <select id="lf-level"><option ${l.level === "SERVICE" ? "selected" : ""}>SERVICE</option><option ${l.level === "TIER" ? "selected" : ""}>TIER</option><option ${l.level === "ACCOUNT" ? "selected" : ""}>ACCOUNT</option></select></div>
+      <div><label class="f">Metric</label>
+        <select id="lf-metric"><option ${l.metric === "AMOUNT" ? "selected" : ""}>AMOUNT</option><option ${l.metric === "COUNT" ? "selected" : ""}>COUNT</option></select></div>
+      <div><label class="f">Period (calendar windows §6.4)</label>
+        <select id="lf-period">${["PER_TXN", "DAILY", "WEEKLY", "MONTHLY"].map(p => `<option ${p === l.period ? "selected" : ""}>${p}</option>`).join("")}</select></div>
+      <div><label class="f">Scope</label><select id="lf-scope"></select></div>
+      <div><label class="f">Ceiling</label><input id="lf-ceiling" type="number" min="1" value="${l.ceiling}"></div>
+    </div>
+    <div class="actions"><button class="ghost" onclick="closeModal()">Cancel</button>
+    <button class="primary" id="lf-save">Save</button></div>`);
+  const fillScopes = () => {
+    const level = $("lf-level").value;
+    let opts = [];
+    if (level === "SERVICE") opts = Object.keys(cfg.products).sort().map(p => [p, p]);
+    else if (level === "TIER") opts = cfg.tiers.flatMap(t => Object.keys(cfg.products).sort().map(p => [p + "#" + t, p + " # " + t]));
+    else opts = Object.values(STATE.accounts).sort((a, b) => a.id < b.id ? -1 : 1).map(a => [a.id, a.id + " (" + a.product + " # " + a.tier + ")"]);
+    $("lf-scope").innerHTML = opts.map(([v, label]) => `<option value="${esc(v)}" ${v === l.scope ? "selected" : ""}>${esc(label)}</option>`).join("");
+  };
+  fillScopes();
+  $("lf-level").onchange = fillScopes;
+  $("lf-save").onclick = async () => {
+    const limit = {
+      level: $("lf-level").value, operation: $("lf-op").value, metric: $("lf-metric").value,
+      period: $("lf-period").value, ceiling: parseInt($("lf-ceiling").value || "0", 10), scope: $("lf-scope").value,
+    };
+    try {
+      await api("/api/config/limits", { method: "POST", body: JSON.stringify({ upsert: limit }) });
+      closeModal(); await refresh(); await refreshCaps(); renderConfig(); toast("Limit saved");
+    } catch (e) { toast(e.message); }
+  };
+}
+
+function renderCfgRules() {
+  const cfg = STATE.config;
+  // with no operations configured there is nothing to switch — day-0 guide
+  if (!cfg.operations.length || !Object.keys(cfg.products).length) { cfgEmpty("cfg-rules", "rules"); return; }
+  const scopes = new Map();
+  Object.keys(cfg.products).sort().forEach(p => scopes.set("SERVICE|" + p, `SERVICE · ${p}`));
+  cfg.tiers.forEach(t => Object.keys(cfg.products).sort().forEach(p => scopes.set("TIER|" + p + "#" + t, `TIER · ${p} # ${t}`)));
+  Object.values(STATE.accounts).sort((a, b) => a.id < b.id ? -1 : 1).forEach(a => scopes.set("ACCOUNT|" + a.id, `ACCOUNT · ${a.id}`));
+  if (!ruleScope || ![...scopes.keys()].includes(ruleScope)) ruleScope = scopes.keys().next().value;
+
+  const [level, scope] = ruleScope.split("|");
+  const scopeOps = level === "ACCOUNT"
+    ? (cfg.products[STATE.accounts[scope]?.product] || [])
+    : (cfg.products[scope.split("#")[0]] || []);
+  const scopeLimits = cfg.limits.filter(l => l.level === level && l.scope === scope);
+
+  let html = `<div class="card">
+    <div class="toolbar"><b style="font-size:14px">Rules — the ON/OFF switches</b><div class="grow"></div>
+      <select id="rule-scope" style="min-width:280px">${[...scopes].map(([v, label]) => `<option value="${esc(v)}" ${v === ruleScope ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
+
+    <h3 style="margin-top:4px">Permission rules <span class="note">— §7.2: resolved top-down, any OFF blocks; broader OFF can't be reopened lower</span></h3>
+    <table><tr><th>operation</th><th>switch</th><th>source</th></tr>
+    ${scopeOps.map(op => {
+      const r = cfg.rules.find(x => x.kind === "PERMISSION" && x.level === level && x.scope === scope && x.operation === op);
+      const on = r ? r.enabled : true;
+      return `<tr><td class="mono">${esc(op)}</td>
+        <td><label class="switch off-checked"><input type="checkbox" ${on ? "checked" : ""} data-perm="${esc(op)}"><span class="slider"></span></label></td>
+        <td class="note">${r ? "explicit rule" : "no row → default ON"}</td></tr>`;
+    }).join("")}</table>`;
+
+  if (scopeLimits.length) {
+    html += `<h3>Enforcement rules <span class="note">— §7.3: independent per level; OFF skips only this level's check</span></h3>
+    <table><tr><th>limit</th><th>ceiling</th><th>check live?</th></tr>
+    ${scopeLimits.map(l => {
+      const key = l.operation + "|" + l.metric + "|" + l.period;
+      const r = cfg.rules.find(x => x.kind === "ENFORCEMENT" && x.level === level && x.scope === scope && x.operation === l.operation && x.metric === l.metric && x.period === l.period);
+      const on = r ? r.enabled : true;
+      return `<tr><td class="mono">${esc(l.operation)} · ${esc(l.metric)} · ${esc(l.period)}</td><td class="num">${fmt(l.ceiling)}</td>
+        <td><label class="switch"><input type="checkbox" ${on ? "checked" : ""} data-enf="${esc(key)}"><span class="slider"></span></label></td></tr>`;
+    }).join("")}</table>`;
+  } else {
+    html += `<div class="note" style="margin-top:10px">No limits configured at this scope — add limits first; enforcement switches sit next to their own limits (§7.4.2).</div>`;
+  }
+  html += `</div>`;
+  $("cfg-rules").innerHTML = html;
+
+  $("rule-scope").onchange = e => { ruleScope = e.target.value; renderCfgRules(); };
+  $("cfg-rules").querySelectorAll("[data-perm]").forEach(cb => cb.onchange = async () => {
+    try {
+      await api("/api/config/rules", { method: "POST", body: JSON.stringify({ upsert: { kind: "PERMISSION", level, scope, operation: cb.dataset.perm, enabled: cb.checked } }) });
+      await refresh(); await refreshCaps(); renderCfgRules();
+    } catch (e) { toast(e.message); }
+  });
+  $("cfg-rules").querySelectorAll("[data-enf]").forEach(cb => {
+    const [operation, metric, period] = cb.dataset.enf.split("|");
+    cb.onchange = async () => {
+      try {
+        await api("/api/config/rules", { method: "POST", body: JSON.stringify({ upsert: { kind: "ENFORCEMENT", level, scope, operation, metric, period, enabled: cb.checked } }) });
+        await refresh(); await refreshCaps(); renderCfgRules();
+      } catch (e) { toast(e.message); }
+    };
+  });
+}
+let ruleScope = null;
+
+/* ================= ACTIVITY view ================= */
+function renderActivity() {
+  const t = $("activity-table");
+  const rows = STATE.activity || [];
+  if (!rows.length) { t.innerHTML = `<tr><td><div class="empty">Nothing simulated yet — fire a transaction from the Simulate view.</div></td></tr>`; return; }
+  t.innerHTML = `<tr><th>when</th><th>account</th><th>operation</th><th style="text-align:right">amount</th><th>mode</th><th>outcome</th><th>reason</th></tr>` +
+    rows.map(e => `<tr>
+      <td class="note mono">${esc((e.when || "").replace("T", " ").slice(0, 16))}</td>
+      <td class="mono">${esc(e.accountId)}</td><td class="mono">${esc(e.operation)}</td>
+      <td class="num">${fmt(e.amount)}</td>
+      <td>${e.committed ? `<span class="pill info">exec</span>` : `<span class="pill grey">dry</span>`}</td>
+      <td>${e.allowed ? `<span class="pill ok">ALLOWED</span>` : `<span class="pill no">REJECTED</span>`}</td>
+      <td class="note" style="max-width:420px">${esc(e.reason)}</td></tr>`).join("");
+}
+$("btn-clear-log").onclick = async () => { await api("/api/reset", { method: "POST" }); lastDecision = null; await refresh(false); renderActivity(); toast("Log cleared (world reset)"); };
+
+/* ================= SCENARIOS view ================= */
+async function renderScenarios() {
+  if (!scenarios.length) scenarios = await api("/api/scenarios");
+  $("scenario-list").innerHTML = scenarios.map(s => `
+    <div class="scenario-card" data-scn="${esc(s.id)}">
+      <div class="t">${esc(s.title)}<span class="ref">${esc(s.docRef)}</span></div>
+      <div class="s">${esc(s.story)}</div>
+    </div>`).join("");
+  $("scenario-list").querySelectorAll("[data-scn]").forEach(c => c.onclick = () => runScenario(scenarios.find(s => s.id === c.dataset.scn)));
+}
+
+async function runScenario(s) {
+  await api("/api/reset", { method: "POST" });
+  selectedAccount = null; lastDecision = null;
+  await refresh(false); await refreshCaps();
+
+  const needsTierOn = ["enforcement-switch"].includes(s.id) || ["aisha-story"].includes(s.id);
+  // pre-apply config the story assumes
+  if (s.id === "calendar-weeks") {
+    await api("/api/config/limits", { method: "POST", body: JSON.stringify({ upsert: { level: "TIER", operation: "BFTN", metric: "AMOUNT", period: "WEEKLY", ceiling: 5000, scope: "CURRENT_ACCOUNT#TIER_1" } }) });
+    $("sim-when").value = "2026-08-10";
+  }
+  if (s.id === "mandate-cap") {
+    await api("/api/config/limits", { method: "POST", body: JSON.stringify({ upsert: { level: "SERVICE", operation: "TRANSFER_OUT", metric: "AMOUNT", period: "DAILY", ceiling: 10000, scope: "CURRENT_ACCOUNT" } }) });
+    await api("/api/config/limits", { method: "POST", body: JSON.stringify({ upsert: { level: "ACCOUNT", operation: "TRANSFER_OUT", metric: "AMOUNT", period: "DAILY", ceiling: 50000, scope: "ACC-001" } }) });
+    // fresh usage for the day
+    await refresh(); await refreshCaps();
+  }
+  if (needsTierOn && s.id !== "aisha-story") {
+    await api("/api/config/rules", { method: "POST", body: JSON.stringify({ upsert: { level: "TIER", kind: "PERMISSION", operation: "AGENT_POINT_WITHDRAWAL", scope: "CURRENT_ACCOUNT#TIER_1", enabled: true } }) });
+  }
+  if (s.id === "tier-move") {
+    await api("/api/accounts", { method: "POST", body: JSON.stringify({ ...STATE.accounts["ACC-005"], tier: "TIER_3" }) });
+  }
+  await refresh(); await refreshCaps();
+
+  let html = `<div class="card"><div class="view-head" style="margin:0 0 6px"><h1 style="font-size:16px">${esc(s.title)}</h1>
+    <span class="ref note mono">${esc(s.docRef)}</span><div class="grow"></div>
+    <button class="ghost small" id="scn-reset">↺ restart scenario</button></div>
+    <div class="note" style="line-height:1.6">${esc(s.story)}</div>
+    <div class="step-list">`;
+  s.txns.forEach((txn, i) => {
+    html += `<div class="step" id="step-${i}"><div class="n">${i + 1}</div>
+      <div class="body"><span class="mono"><b>${esc(txn.accountId)}</b> · ${esc(txn.operation)} · BDT ${fmt(txn.amount)}</span>
+      <span class="expect pill ${txn.expect === "ALLOWED" ? "ok" : "no"}">${txn.expect}</span>
+      <div class="note">${esc(txn.comment)}</div></div>
+      <button class="primary small run" data-step="${i}">Run</button></div>`;
+  });
+  html += `</div><div class="note" style="margin-top:10px">Each Run performs an <b>Execute</b> (records usage). Expected outcomes assume the story's config is in place — the step notes tell you which switches to flip in between.</div></div>`;
+  $("scenario-runner").innerHTML = html;
+
+  $("scenario-runner").querySelectorAll("[data-step]").forEach(btn => btn.onclick = async () => {
+    const i = +btn.dataset.step;
+    const txn = s.txns[i];
+    selectedAccount = txn.accountId;
+    $("sim-operation").value = txn.operation;
+    $("sim-amount").value = txn.amount;
+    document.querySelector('.nav-item[data-view="simulate"]').click();
+    await simulate(true);
+    const ok = (lastDecision.allowed && txn.expect === "ALLOWED") || (!lastDecision.allowed && txn.expect === "BLOCKED");
+    const step = $("step-" + i);
+    step.classList.add("done");
+    btn.textContent = lastDecision.allowed ? "✓ ran" : "✕ ran";
+    btn.disabled = true;
+    toast(ok ? `Step ${i + 1}: matches the doc (${txn.expect})` : `Step ${i + 1}: got ${lastDecision.allowed ? "ALLOWED" : "BLOCKED"}, doc says ${txn.expect}`, 4200);
+  });
+  $("scn-reset").onclick = () => runScenario(s);
+  document.querySelector('.nav-item[data-view="scenarios"]').click();
+}
+
+/* ================= init ================= */
+$("sim-when").value = todayStr();
+refresh().then(refreshCaps).catch(e => toast("Failed to load: " + e.message));
+</script>
+</body>
+</html>
