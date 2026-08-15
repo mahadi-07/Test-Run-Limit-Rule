@@ -306,6 +306,19 @@ func main() {
 		writeJSON(w, engine.Scenarios())
 	})
 
+	// load one example's minimal world — blank slate + exactly its config
+	mux.HandleFunc("POST /api/scenarios/{id}/load", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		for _, s := range engine.Scenarios() {
+			if s.ID == id {
+				state.LoadScenario(s.World)
+				writeJSON(w, map[string]string{"status": "ok", "scenario": id})
+				return
+			}
+		}
+		http.Error(w, "unknown scenario "+id, http.StatusNotFound)
+	})
+
 	// serve the frontend
 	webDir := os.Getenv("WEB_DIR")
 	if webDir == "" {
